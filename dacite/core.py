@@ -30,6 +30,7 @@ from dacite.types import (
     is_init_var,
     extract_init_var,
     is_subclass,
+    is_sequence,
 )
 
 from dacite.generics import get_concrete_type_hints, get_fields, orig
@@ -60,7 +61,7 @@ def from_dict(data_class: Type[T], data: Data, config: Optional[Config] = None) 
         if extra_fields:
             raise UnexpectedDataError(keys=extra_fields)
 
-    for field in data_class_fields:
+    for idx, field in enumerate(data_class_fields):
         field_type = data_class_hints[field.name]
         key = config.convert_key(field.name)
 
@@ -68,7 +69,8 @@ def from_dict(data_class: Type[T], data: Data, config: Optional[Config] = None) 
             try:
                 value = _build_value(type_=field_type, data=data[key], config=config)
             except DaciteFieldError as error:
-                error.update_path(field.name)
+                if is_sequence(field_type):
+                    error.update_path(field.name, position=idx)
                 raise
             if config.check_types and not is_instance(value, field_type):
                 raise WrongTypeError(field_path=field.name, field_type=field_type, value=value)

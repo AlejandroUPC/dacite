@@ -1,5 +1,6 @@
 from dataclasses import InitVar, is_dataclass
-from typing import Type, Any, Optional, Union, Collection, TypeVar, Mapping, Tuple, cast as typing_cast
+from typing import Type, Any, Optional, Union, Collection, TypeVar, Mapping, Tuple, cast as typing_cast, get_origin
+from collections.abc import Sequence
 
 try:
     from typing import get_origin  # type: ignore
@@ -9,6 +10,11 @@ except ImportError:
 from dacite.cache import cache
 
 T = TypeVar("T", bound=Any)
+
+
+@cache
+def is_sequence(type_: Type) -> bool:
+    return issubclass(type_.__origin__, Sequence)
 
 
 @cache

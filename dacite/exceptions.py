@@ -15,8 +15,9 @@ class DaciteFieldError(DaciteError):
         super().__init__()
         self.field_path = field_path
 
-    def update_path(self, parent_field_path: str) -> None:
+    def update_path(self, parent_field_path: str, position: Optional[int] = None) -> None:
         if self.field_path:
+            parent_field_path = f"{parent_field_path}[{position}]" if position is not None else parent_field_path
             self.field_path = f"{parent_field_path}.{self.field_path}"
         else:
             self.field_path = parent_field_path
