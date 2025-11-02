@@ -15,16 +15,18 @@ class DaciteFieldError(DaciteError):
         super().__init__()
         self.field_path = field_path
 
-    def update_path(self, parent_field_path: str, position: Optional[int] = None) -> None:
+    def update_path(self, parent_field_path: str, index: Optional[int] = None) -> None:
         if self.field_path:
-            parent_field_path = f"{parent_field_path}[{position}]" if position is not None else parent_field_path
+            parent_field_path = f"{parent_field_path}[{index}]" if index is not None else parent_field_path
             self.field_path = f"{parent_field_path}.{self.field_path}"
         else:
             self.field_path = parent_field_path
 
 
 class WrongTypeError(DaciteFieldError):
-    def __init__(self, field_type: Type, value: Any, field_path: Optional[str] = None) -> None:
+    def __init__(
+        self, field_type: Type, value: Any, field_path: Optional[str] = None, index: Optional[int] = None
+    ) -> None:
         super().__init__(field_path=field_path)
         self.field_type = field_type
         self.value = value

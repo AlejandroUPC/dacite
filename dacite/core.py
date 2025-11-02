@@ -38,7 +38,7 @@ from dacite.generics import get_concrete_type_hints, get_fields, orig
 T = TypeVar("T")
 
 
-def from_dict(data_class: Type[T], data: Data, config: Optional[Config] = None) -> T:
+def from_dict(data_class: Type[T], data: Data, config: Optional[Config] = None, index: Optional[int] = None) -> T:
     """Create a data class instance from a dictionary.
 
     :param data_class: a data class type
@@ -61,26 +61,30 @@ def from_dict(data_class: Type[T], data: Data, config: Optional[Config] = None) 
         if extra_fields:
             raise UnexpectedDataError(keys=extra_fields)
 
-    for idx, field in enumerate(data_class_fields):
+    for field in data_class_fields:
         field_type = data_class_hints[field.name]
         key = config.convert_key(field.name)
-
         if key in data:
             try:
                 value = _build_value(type_=field_type, data=data[key], config=config)
             except DaciteFieldError as error:
                 if is_sequence(field_type):
-                    error.update_path(field.name, position=idx)
+                    error.update_path(field.name, index=index)
                 raise
             if config.check_types and not is_instance(value, field_type):
                 raise WrongTypeError(field_path=field.name, field_type=field_type, value=value)
         else:
             try:
                 value = get_default_value_for_field(field, field_type)
-            except DefaultValueNotFoundError:
+            except DefaultValueNotFoundError as error:
                 if not field.init:
                     continue
-                raise MissingValueError(field.name) from None
+                error = MissingValueError(field_path=field.name)
+                if is_sequence(field_type):
+                    error.update_path(parent_field_path=field.name, index=index)
+                    raise error from None
+                else:
+                    raise error from None
         if field.init:
             init_values[field.name] = value
         elif not is_frozen(data_class):
@@ -94,7 +98,7 @@ def from_dict(data_class: Type[T], data: Data, config: Optional[Config] = None) 
     return instance
 
 
-def _build_value(type_: Type, data: Any, config: Config) -> Any:
+def _build_value(type_: Type, data: Any, config: Config, index: Optional[int] = None) -> Any:
     if is_init_var(type_):
         type_ = extract_init_var(type_)
     if type_ in config.type_hooks:
@@ -106,7 +110,7 @@ def _build_value(type_: Type, data: Any, config: Config) -> Any:
     elif is_generic_collection(type_):
         data = _build_value_for_collection(collection=type_, data=data, config=config)
     elif cache(is_dataclass)(orig(type_)) and isinstance(data, Mapping):
-        data = from_dict(data_class=type_, data=data, config=config)
+        data = from_dict(data_class=type_, data=data, config=config, index=index)
     for cast_type in config.cast:
         if is_subclass(type_, cast_type):
             if is_generic_collection(type_):
@@ -161,5 +165,7 @@ def _build_value_for_collection(collection: Type, data: Any, config: Config) -> 
         )
     elif isinstance(data, Collection) and is_subclass(collection, Collection):
         item_type = extract_generic(collection, defaults=(Any,))[0]
-        return data_type(_build_value(type_=item_type, data=item, config=config) for item in data)
+        return data_type(
+            _build_value(type_=item_type, data=item, config=config, index=index) for index, item in enumerate(data)
+        )
     return data
