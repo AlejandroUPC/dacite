@@ -14,7 +14,8 @@ T = TypeVar("T", bound=Any)
 
 @cache
 def is_sequence(type_: Type) -> bool:
-    return issubclass(type_.__origin__, Sequence)
+    type_ = getattr(type_, "__origin__", type_)
+    return issubclass(type_, Sequence)
 
 
 @cache

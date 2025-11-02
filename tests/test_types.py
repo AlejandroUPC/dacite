@@ -21,6 +21,7 @@ from dacite.types import (
     extract_init_var,
     is_type_generic,
     is_tuple,
+    is_sequence,
 )
 from tests.common import (
     literal_support,
@@ -410,3 +411,25 @@ def test_optional_and_union_none_does_not_pollute_scope_via_caching():
 @pep_604_support
 def test_optional_and_union_none_does_not_pollute_scope_via_caching_pep_604():
     is_generic_collection(str | None)
+
+
+@pytest.mark.parametrize(
+    "sequence_type,expected",
+    [(list, True), (List, True), (range, True), (Tuple, True), (tuple, True), (Dict, False), (dict, False)],
+)
+def test_is_sequence_standard_builtin_types(sequence_type, expected):
+    assert is_sequence(sequence_type) == expected
+
+
+@pytest.mark.parametrize(
+    "custom_type,expected",
+    [
+        (list, True),
+        (List, True),
+        (tuple, True),
+        (Tuple, True),
+    ],
+)
+def test_is_sequence_custom_types(custom_type, expected):
+    F = TypeVar("F", bound=custom_type)
+    assert is_sequence(custom_type[F]) == expected
